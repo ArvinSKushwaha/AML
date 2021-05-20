@@ -1,4 +1,4 @@
-from .core import Tensor, exp, mean, sum, sin, cos, tan
+from .core import Tensor, exp, mean, sum, sin, cos, tan, log, rn_state
 from .model import Module
 import numpy as np
 

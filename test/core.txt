@@ -1,0 +1,13 @@
+>>> import aml
+
+>>> aml.core.seed_random(1)
+>>> aml.randn(3, 2)
+Tensor([[ 0.80331272 -0.90738285]
+ [ 1.19641793  2.6028173 ]
+ [-2.46930146 -1.28190947]])
+
+>>> x = aml.grad_tensor(1)
+>>> (x**2).backward()
+
+>>> x.grad
+Tensor(2.0)

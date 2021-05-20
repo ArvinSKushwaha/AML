@@ -1,0 +1,20 @@
+>>> import aml
+
+# Testing Power Rule
+>>> x = aml.randn(5, 2, requires_grad=True)
+>>> (x**3).backward()
+>>> (x.grad == 3 * (x.grad_free**2)).sum()
+Tensor(10.0)
+
+# Testing Exponentials
+>>> x.grad.data.fill(0)
+>>> y = aml.exp(x)
+>>> y.backward()
+>>> (x.grad == y.grad_free).sum()
+Tensor(10.0)
+
+>>> x.grad.data.fill(0)
+>>> y = 2**x
+>>> y.backward()
+>>> (x.grad == aml.log(2)*y.grad_free).sum()
+Tensor(10.0)

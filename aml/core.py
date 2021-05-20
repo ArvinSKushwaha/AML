@@ -6,6 +6,14 @@ import operator
 import numpy as np
 
 
+rn_state = np.random.RandomState()
+
+
+def seed_random(x: int):
+    global rn_state
+    rn_state = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(x)))
+
+
 # To store the sequence of operations (for automatic differentiation),
 # the Ops class holds information on the inputs as well as the method for differentiation.
 class Ops:
@@ -84,20 +92,20 @@ class Tensor:
     def rand(
         *args: int, requires_grad: bool = False
     ) -> "Tensor":  # Tensors filled with random values from the uniform distribution on [0, 1)
-        return Tensor(np.random.rand(*args).astype(np.float32), requires_grad)
+        return Tensor(rn_state.rand(*args).astype(np.float32), requires_grad)
 
     @staticmethod
     def randn(
         *args: int, requires_grad: bool = False
     ) -> "Tensor":  # Tensors filled with random values from the standard gaussian distribution
-        return Tensor(np.random.randn(*args).astype(np.float32), requires_grad)
+        return Tensor(rn_state.randn(*args).astype(np.float32), requires_grad)
 
     @staticmethod
     def uniform(
         *args: int, low: float = 0.0, high: float = 1.0, requires_grad: bool = False
     ) -> "Tensor":  # Tensors filled with random values from the uniform distribution on [low, high)
         return Tensor(
-            np.random.rand(*args).astype(np.float32) * (high - low) + low, requires_grad
+            rn_state.rand(*args).astype(np.float32) * (high - low) + low, requires_grad
         )
 
     def backward(
@@ -215,6 +223,9 @@ class Tensor:
 
         return self ** Tensor(other)
 
+    def __rpow__(self, other):
+        return Tensor(other) ** self
+
     def __matmul__(
         self, other
     ) -> "Tensor":  # Matrix multiplication, unlike the previous operations, does not have broadcasting yet. Future editions will contain this update.
@@ -273,6 +284,8 @@ class Tensor:
 
 
 def exp(x: Tensor) -> Tensor:  # e^x
+    if not isinstance(x, Tensor):
+        return exp(Tensor(x))
     output = Tensor(
         np.exp(x.data), x.requires_grad, Exp(x)
     )  # Pass the exponentiation operation
@@ -280,6 +293,8 @@ def exp(x: Tensor) -> Tensor:  # e^x
 
 
 def log(x: Tensor) -> Tensor:  # log(x)
+    if not isinstance(x, Tensor):
+        return log(Tensor(x))
     output = Tensor(
         np.log(x.data), x.requires_grad, Log(x)
     )  # Pass the logarithmic operation
@@ -287,11 +302,15 @@ def log(x: Tensor) -> Tensor:  # log(x)
 
 
 def sin(x: Tensor) -> Tensor:  # sin(x)
+    if not isinstance(x, Tensor):
+        return sin(Tensor(x))
     output = Tensor(np.sin(x.data), x.requires_grad, Sin(x))  # Pass the sine operation
     return output
 
 
 def cos(x: Tensor) -> Tensor:  # cos(x)
+    if not isinstance(x, Tensor):
+        return cos(Tensor(x))
     output = Tensor(
         np.cos(x.data), x.requires_grad, Cos(x)
     )  # Pass the cosine operation
@@ -299,6 +318,8 @@ def cos(x: Tensor) -> Tensor:  # cos(x)
 
 
 def tan(x: Tensor) -> Tensor:  # tan(x)
+    if not isinstance(x, Tensor):
+        return tan(Tensor(x))
     return sin(x) / cos(x)  # tan(x) = sin(x) / cos(x)
 
 
@@ -411,7 +432,7 @@ class Pow(
         self.left, self.right = left, right
 
     def diff(self, diff: Tensor, value: Tensor):
-        if self.right.requires_grad:
+        if self.right.requires_grad and self.left.requires_grad:
             raise NotImplementedError()
 
         if self.left.requires_grad:
@@ -421,6 +442,12 @@ class Pow(
             )
             if left_ops:
                 left_ops.diff(self.left.grad, self.left.grad_free)
+
+        if self.right.requires_grad:
+            right_ops = self.right.last_op
+            self.right.grad += diff * value * log(self.left.grad_free)
+            if right_ops:
+                right_ops.diff(self.right.grad, self.right.grad_free)
 
 
 class MatMul(
